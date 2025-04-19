@@ -1,106 +1,99 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import Navbar from "../components/navbar";
-import Bag from "../assets/testbag.jpg";
-import SimilarBag from "../assets/testbag.jpg"; // Add your own images
+import { db } from "../database/firebase";
+import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 
 function ProductInformation() {
+  const { id } = useParams();
   const [quantity, setQuantity] = useState(1);
+  const [product, setProduct] = useState(null);
+  const [similarProducts, setSimilarProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const increaseQty = () => setQuantity((prev) => prev + 1);
   const decreaseQty = () => setQuantity((prev) => (prev > 1 ? prev - 1 : 1));
 
-  // Similar products array
-  const similarProducts = [
-    {
-      id: 1,
-      name: "Vintage Tote",
-      price: "$49.99",
-      image: SimilarBag,
-    },
-    {
-      id: 2,
-      name: "Mini Crossbody",
-      price: "$39.99",
-      image: Bag,
-    },
-    {
-      id: 2,
-      name: "Mini Crossbody",
-      price: "$39.99",
-      image: Bag,
-    },
-    {
-      id: 2,
-      name: "Mini Crossbody",
-      price: "$39.99",
-      image: Bag,
-    },
-    {
-      id: 2,
-      name: "Mini Crossbody",
-      price: "$39.99",
-      image: Bag,
-    },
-    {
-      id: 2,
-      name: "Mini Crossbody",
-      price: "$39.99",
-      image: Bag,
-    },
-    {
-      id: 2,
-      name: "Mini Crossbody",
-      price: "$39.99",
-      image: Bag,
-    },
-    {
-      id: 3,
-      name: "Custom Backpack",
-      price: "$69.99",
-      image: SimilarBag,
-    },
-  ];
+  // Fetch the current product
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        const productRef = doc(db, "products", id);
+        const productSnap = await getDoc(productRef);
+
+        if (productSnap.exists()) {
+          setProduct(productSnap.data());
+        } else {
+          console.error("No such product!");
+        }
+      } catch (error) {
+        console.error("Error fetching product:", error);
+      }
+    };
+
+    fetchProduct();
+  }, [id]);
+
+  // Fetch similar products (excluding the current one)
+  useEffect(() => {
+    const fetchSimilarProducts = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "products"));
+        const allProducts = querySnapshot.docs
+          .filter((docSnap) => docSnap.id !== id)
+          .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+
+        // Pick first 4 or random 4
+        const shuffled = [...allProducts].sort(() => 0.5 - Math.random());
+        setSimilarProducts(shuffled.slice(0, 4));
+      } catch (error) {
+        console.error("Error fetching similar products:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSimilarProducts();
+  }, [id]);
+
+  if (!product) {
+    return (
+      <>
+        <Navbar />
+        <div className="text-center py-5">
+          <h4>Loading product...</h4>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
       <Navbar />
       <div className="container-fluid p-0">
         <div className="row align-items-center">
-          {/* Left - Image */}
           <div className="col-md-6 text-center p-4">
             <img
-              src={Bag}
+              src={product.imageUrl}
               className="img-fluid rounded"
-              alt="Bag"
+              alt={product.title}
               style={{ maxHeight: 500, marginTop: "5%" }}
             />
           </div>
 
-          {/* Right - Product Info */}
           <div className="col-md-6 p-4">
-            <h2>Classic Leather Bag</h2>
+            <h2>{product.title}</h2>
+            <p>{product.description}</p>
             <p>
-              This elegant and stylish leather bag is designed to be both
-              durable and chic. Customize it to your preference and enjoy high
-              quality at an affordable price.
-            </p>
-            <p>
-              <strong>Price:</strong> $59.99
+              <strong>Price:</strong> ${product.price}
             </p>
 
-            {/* Quantity Selector */}
             <div className="d-flex align-items-center mb-3">
-              <button
-                className="btn btn-outline-secondary"
-                onClick={decreaseQty}
-              >
+              <button className="btn btn-outline-secondary" onClick={decreaseQty}>
                 −
               </button>
               <span className="mx-3 fs-5">{quantity}</span>
-              <button
-                className="btn btn-outline-secondary"
-                onClick={increaseQty}
-              >
+              <button className="btn btn-outline-secondary" onClick={increaseQty}>
                 +
               </button>
             </div>
@@ -110,17 +103,16 @@ function ProductInformation() {
         </div>
 
         {/* Similar Products Section */}
-        {/* Similar Products Section */}
         <div className="container mt-5">
           <h3 className="mb-4">Similar Products</h3>
           <div className="row">
-            {similarProducts.map((product) => (
-              <div className="col-md-3 col-sm-6 mb-4" key={product.id}>
+            {similarProducts.map((item) => (
+              <div className="col-md-3 col-sm-6 mb-4" key={item.id}>
                 <div className="card h-100 text-center p-2">
                   <img
-                    src={product.image}
+                    src={item.imageUrl}
                     className="card-img-top mx-auto"
-                    alt={product.name}
+                    alt={item.title}
                     style={{
                       height: "150px",
                       width: "auto",
@@ -128,16 +120,13 @@ function ProductInformation() {
                     }}
                   />
                   <div className="card-body">
-                    <h6 className="card-title">{product.name}</h6>
-                    <p
-                      className="card-text text-muted"
-                      style={{ fontSize: "14px" }}
-                    >
-                      {product.price}
+                    <h6 className="card-title">{item.title}</h6>
+                    <p className="card-text text-muted" style={{ fontSize: "14px" }}>
+                      ${item.price}
                     </p>
-                    <button className="btn btn-sm btn-outline-primary">
+                    <a href={`/product/${item.id}`} className="btn btn-sm btn-outline-primary">
                       View
-                    </button>
+                    </a>
                   </div>
                 </div>
               </div>
