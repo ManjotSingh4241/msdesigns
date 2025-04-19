@@ -9,7 +9,7 @@ function ProductInformation() {
   const [quantity, setQuantity] = useState(1);
   const [product, setProduct] = useState(null);
   const [similarProducts, setSimilarProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [setLoading] = useState(true);
 
   const increaseQty = () => setQuantity((prev) => prev + 1);
   const decreaseQty = () => setQuantity((prev) => (prev > 1 ? prev - 1 : 1));
@@ -54,7 +54,7 @@ function ProductInformation() {
     };
 
     fetchSimilarProducts();
-  }, [id]);
+  });
 
   if (!product) {
     return (
